@@ -15,7 +15,7 @@
   <groupId>org.sakaiproject.nakamura</groupId>
   <artifactId>org.postgres</artifactId>
   <packaging>bundle</packaging>
-  <version>vcam_postgres_bundle_001</version>
+  <version>0.0.1.vcam_postgres_bundle</version>
   <name>Sakai Nakamura :: PostgreSQL JDBC Bundle</name>
   <description>Provides PostgreSQL driver for Sparse, optional bundle </description>
   <properties>
