@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Sakai Foundation (SF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -320,8 +320,13 @@ public class MemoryStorageClient implements StorageClient {
     }
 
     public long allCount(String keySpace, String columnFamily) {
-        // TODO Auto-generated method stub
-        return 0;
+        long count = 0;
+        DisposableIterator<SparseRow> allRows = listAll(keySpace, columnFamily);
+        while (allRows.hasNext()) {
+          allRows.next();
+          count++;
+        }
+        return count;
     }
 
 
