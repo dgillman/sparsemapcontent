@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Sakai Foundation (SF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@ package org.sakaiproject.nakamura.lite;
 
 import org.sakaiproject.nakamura.api.lite.CacheHolder;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
+import org.sakaiproject.nakamura.lite.storage.RowHasher;
 import org.sakaiproject.nakamura.lite.storage.StorageClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +29,7 @@ import java.util.Map;
 /**
  * Extend this class to add caching to a Manager class.
  */
-public abstract class CachingManager {
+public abstract class CachingManager implements DirectCacheAccess {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CachingManager.class);
     private Map<String, CacheHolder> sharedCache;
@@ -61,34 +62,51 @@ public abstract class CachingManager {
         Map<String, Object> m = null;
         String cacheKey = getCacheKey(keySpace, columnFamily, key);
 
-
-        if (sharedCache != null && sharedCache.containsKey(cacheKey)) {
-            CacheHolder cacheHolder = sharedCache.get(cacheKey);
-            if (cacheHolder != null) {
-                if (cacheHolder instanceof DeletedCacheMarker) {
-                  return null;
-                }
-                m = cacheHolder.get();
-                LOGGER.debug("Cache Hit {} {} {} ",new Object[]{cacheKey, cacheHolder, m});
+        CacheHolder cacheHolder = getFromCacheInternal(cacheKey);
+        if (cacheHolder != null ) {
+            m = cacheHolder.get();
+            if ( m != null ) {
+                LOGGER.debug("Cache Hit {} {} {} ", new Object[] { cacheKey, cacheHolder, m });
                 hit++;
             }
         }
         if (m == null) {
             m = client.get(keySpace, columnFamily, key);
             miss++;
-            if (sharedCache != null) {
-                if (m != null) {
-                    LOGGER.debug("Cache Miss, Found Map {} {}", cacheKey, m);
-                }
-                sharedCache.put(cacheKey, new CacheHolder(m));
+            if (m != null) {
+                LOGGER.debug("Cache Miss, Found Map {} {}", cacheKey, m);
             }
+            putToCacheInternal(cacheKey, new CacheHolder(m));
         }
         calls++;
-        if ((calls % 1000) == 0) {
+        if ((calls % 10000) == 0) {
             getLogger().info("Cache Stats Hits {} Misses {}  hit% {}", new Object[] { hit, miss,
                     ((100 * hit) / (hit + miss)) });
         }
         return m;
+    }
+    public void putToCache(String cacheKey, CacheHolder cacheHolder) {
+        if ( client instanceof RowHasher ) {
+            putToCacheInternal(cacheKey, cacheHolder);
+        }
+    }
+
+    private void putToCacheInternal(String cacheKey, CacheHolder cacheHolder) {
+        if (sharedCache != null) {
+            sharedCache.put(cacheKey, cacheHolder);
+        }
+    }
+    public CacheHolder getFromCache(String cacheKey) {
+        if ( client instanceof RowHasher ) {
+            return getFromCacheInternal(cacheKey);
+        }
+        return null;
+    }
+    private CacheHolder getFromCacheInternal(String cacheKey) {
+        if (sharedCache != null && sharedCache.containsKey(cacheKey)) {
+            return sharedCache.get(cacheKey);
+        }
+        return null;
     }
 
     protected abstract Logger getLogger();
@@ -99,23 +117,32 @@ public abstract class CachingManager {
      * @param columnFamily
      * @param key
      * @return the cache key
+     * @throws StorageClientException 
      */
-    private String getCacheKey(String keySpace, String columnFamily, String key) {
+    private String getCacheKey(String keySpace, String columnFamily, String key) throws StorageClientException {
+        if ( client instanceof RowHasher) {
+            return ((RowHasher) client).rowHash(keySpace, columnFamily, key);
+        }
         return keySpace + ":" + columnFamily + ":" + key;
     }
 
     /**
-     * Remove this object from the cache.
+     * Remove this object from the cache. Note, StorageClient uses the word
+     * remove to mean delete. This method should do the same.
+     * 
      * @param keySpace
      * @param columnFamily
      * @param key
+     * @throws StorageClientException 
      */
-    protected void removeFromCache(String keySpace, String columnFamily, String key) {
+    protected void removeCached(String keySpace, String columnFamily, String key) throws StorageClientException {
         if (sharedCache != null) {
-            sharedCache.remove(getCacheKey(keySpace, columnFamily, key));
+            // insert a replacement. This should cause an invalidation message to propagate in the cluster.
+            putToCacheInternal(getCacheKey(keySpace, columnFamily, key), new CacheHolder(null));
         }
+        client.remove(keySpace, columnFamily, key);
+
     }
-    
 
     /**
      * Put an object in the cache
@@ -129,27 +156,31 @@ public abstract class CachingManager {
     protected void putCached(String keySpace, String columnFamily, String key,
             Map<String, Object> encodedProperties, boolean probablyNew)
             throws StorageClientException {
-        if (!wasDeleted(keySpace, columnFamily, key)) {
-            LOGGER.debug("Saving {} {} {} {} ", new Object[] { keySpace, columnFamily, key, encodedProperties});
-            client.insert(keySpace, columnFamily, key, encodedProperties, probablyNew);
-            removeFromCache(keySpace, columnFamily, key);
+        String cacheKey = null;
+        if ( sharedCache != null ) {
+            cacheKey = getCacheKey(keySpace, columnFamily, key);
         }
-    }
-
-    private boolean wasDeleted(String keySpace, String columnFamily, String key) {
-        return (sharedCache != null && sharedCache.get(getCacheKey(keySpace, columnFamily, key)) instanceof DeletedCacheMarker);
-    }
-
-    protected void markDeleted(String keySpace, String columnFamily, String key) {
-        if (sharedCache != null) {
-          String cacheKey = getCacheKey(keySpace, columnFamily, key);
-          sharedCache.put(cacheKey, new DeletedCacheMarker());
+        if ( sharedCache != null && !probablyNew ) {
+            CacheHolder ch = getFromCacheInternal(cacheKey);
+            if ( ch != null && ch.get() == null ) {
+                return; // catch the case where another method creates while something is in the cache.
+                // this is a big assumption since if the item is not in the cache it will get updated
+                // there is no difference in sparsemap between create and update, they are all insert operations
+                // what we are really saying here is that inorder to update the item you have to have just got it
+                // and if you failed to get it, your update must have been a create operation. As long as the dwell time
+                // in the cache is longer than the lifetime of an active session then this will be true.
+                // if the lifetime of an active session is longer (like with a long running background operation)
+                // then you should expect to see race conditions at this point since the marker in the cache will have 
+                // gone, and the marker in the database has gone, so the put operation, must be a create operation.
+                // To change this behavior we would need to differentiate more strongly between new and update and change 
+                // probablyNew into certainlyNew, but that would probably break the BASIC assumption of the whole system.
+            }
         }
-    }
-
-    private class DeletedCacheMarker extends CacheHolder {
-        public DeletedCacheMarker() {
-          super(null);
+        LOGGER.debug("Saving {} {} {} {} ", new Object[] { keySpace, columnFamily, key,
+                encodedProperties });
+        client.insert(keySpace, columnFamily, key, encodedProperties, probablyNew);
+        if ( sharedCache != null ) {
+            sharedCache.remove(cacheKey);
         }
     }
 

@@ -4,7 +4,7 @@
  <parent>
     <groupId>org.sakaiproject.nakamura</groupId>
     <artifactId>core-base</artifactId>
-    <version>1-20111013</version>
+    <version>2</version>
     <relativePath>parent/pom.xml</relativePath>
   </parent>
   <groupId>org.sakaiproject.nakamura</groupId>
@@ -90,6 +90,10 @@
       </build>
     </profile>
   </profiles>
+
+  <prerequisites>
+    <maven>2.2.1</maven>
+  </prerequisites>
   <build>
     <plugins>
       <plugin>
@@ -99,7 +103,7 @@
         <extensions>true</extensions>
         <configuration>
           <instructions>
-            <Bundle-Category>sparsemapcontent</Bundle-Category>
+            <Bundle-Category>sparse-map</Bundle-Category>
             <Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
             <Export-Package>
               org.sakaiproject.nakamura.api.lite.*
@@ -115,6 +119,7 @@
 			   org.apache.thrift;resolution:=optional,
 			   org.apache.thrift.protocol;resolution:=optional,
 			   org.apache.thrift.transport;resolution:=optional,
+			   com.mongodb.*;resolution:=optional,
 			   <!-- Uncomment for Oracle -->
 			   <!--
 			   Please verify that with Dynamic-Import this is not required. I think only packages that are explicity mentioned need this.
@@ -151,9 +156,27 @@
          </includes>
        </configuration>
      </plugin>
+     <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-install-plugin</artifactId>
+        <version>2.3.1</version>
+        <executions>
+          <execution>
+            <id>install-parent</id>
+            <phase>initialize</phase>
+            <goals>
+              <goal>install-file</goal>
+            </goals>
+            <configuration>
+               <file>parent/pom.xml</file>
+               <pomFile>parent/pom.xml</pomFile>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
-  <dependencies>   
+  <dependencies>
     <!--  Obviously we need thrift. -->
     <dependency>
       <groupId>org.apache.cassandra.deps</groupId>
@@ -169,6 +192,12 @@
       <artifactId>apache-cassandra</artifactId>
       <version>0.6.5</version>
       <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+        <groupId>org.mongodb</groupId>
+        <artifactId>mongo-java-driver</artifactId>
+        <version>2.6.5</version>
     </dependency>
     
     <dependency>
@@ -193,12 +222,11 @@
        <artifactId>commons-codec</artifactId>
        <version>1.4</version>
     </dependency>
-    
-    
+
     <dependency>
-      <groupId>com.google.collections</groupId>
-      <artifactId>google-collections</artifactId>
-      <version>0.8</version>
+       <groupId>com.googlecode.guava-osgi</groupId>
+       <artifactId>guava-osgi</artifactId>
+       <version>9.0.0</version>
     </dependency>
     
     <!-- osgi for events -->
@@ -261,6 +289,12 @@
 	  <artifactId>hbase</artifactId>
 	  <version>0.90.3</version>    
           <scope>provided</scope>
+          <exclusions>
+          	<exclusion>
+          		<artifactId>slf4j-log4j12</artifactId>
+          		<groupId>org.slf4j</groupId>
+          	</exclusion>
+          </exclusions>
     </dependency>
 <!--
     To use Oracle, install ojdbc14.jar to your local mvn

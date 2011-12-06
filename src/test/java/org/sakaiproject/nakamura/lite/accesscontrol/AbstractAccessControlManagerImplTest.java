@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Sakai Foundation (SF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 
 import org.junit.After;
@@ -393,16 +394,16 @@ public abstract class AbstractAccessControlManagerImplTest {
             Assert.assertArrayEquals(expectedPermissions[i], p);
             String[] r = acmU.findPrincipals(Security.ZONE_CONTENT, testPath[i],
                     Permissions.CAN_READ.getPermission(), true);
-            Assert.assertArrayEquals(readers[i], sortToArray(ImmutableSet.of(r)));
+            Assert.assertArrayEquals(readers[i], sortToArray(ImmutableSet.copyOf(r)));
             r = acmU.findPrincipals(Security.ZONE_CONTENT, testPath[i],
                     Permissions.CAN_READ.getPermission(), false);
-            Assert.assertArrayEquals(deniedReaders[i], sortToArray(ImmutableSet.of(r)));
+            Assert.assertArrayEquals(deniedReaders[i], sortToArray(ImmutableSet.copyOf(r)));
         }
 
     }
 
     private String[] sortToArray(Set<String> keySet) {
-        return Lists.sortedCopy(keySet).toArray(new String[keySet.size()]);
+        return Ordering.natural().sortedCopy(keySet).toArray(new String[keySet.size()]);
     }
 
     @Test
@@ -440,12 +441,14 @@ public abstract class AbstractAccessControlManagerImplTest {
                                 Permissions.CAN_READ.getPermission(), Operation.OP_REPLACE) });
         // the tokens should not be setup,
         final Content tokentContent = new Content("testtoken/" + tokenPrincipal, null);
-        accessControlManagerImpl.signContentToken(tokentContent, targetContentPath);
+        accessControlManagerImpl.signContentToken(tokentContent, Security.ZONE_CONTENT, targetContentPath);
         LOGGER.info("Checking Token {} ", tokentContent);
         accessControlManagerImpl.setRequestPrincipalResolver(new PrincipalTokenResolver() {
-            public void resolveTokens(String principal, List<Content> tokens) {
+            public List<Content> resolveTokens(String principal) {
+                List<Content> tokens = Lists.newArrayList();
                 tokens.add(tokentContent);
                 LOGGER.info("Principal {} checked tokens {}", principal, tokens);
+                return tokens;
             }
         });
         Assert.assertTrue(accessControlManagerImpl.can(user3Auth, Security.ZONE_CONTENT,
@@ -508,12 +511,14 @@ public abstract class AbstractAccessControlManagerImplTest {
         final Content tokentContent = new Content("testtokenwithPlugin/" + tokenPrincipal,
                 ImmutableMap.of(PrincipalTokenValidator.VALIDATORPLUGIN, (Object) "testvalidator",
                         "protectedfield", "protected"));
-        accessControlManagerImpl.signContentToken(tokentContent, targetContentPath);
+        accessControlManagerImpl.signContentToken(tokentContent, Security.ZONE_CONTENT, targetContentPath);
         LOGGER.info("Checking Token {} ", tokentContent);
         accessControlManagerImpl.setRequestPrincipalResolver(new PrincipalTokenResolver() {
-            public void resolveTokens(String principal, List<Content> tokens) {
+            public List<Content> resolveTokens(String principal) {
+                List<Content> tokens = Lists.newArrayList();
                 tokens.add(tokentContent);
                 LOGGER.info("Principal {} checked tokens {}", principal, tokens);
+                return tokens;
             }
         });
         Assert.assertTrue(accessControlManagerImpl.can(user3Auth, Security.ZONE_CONTENT,
@@ -593,30 +598,28 @@ public abstract class AbstractAccessControlManagerImplTest {
 
         // Start a new session.
         adminSession.logout();
-        adminSession = null;
-        adminSession = repository.loginAdministrative();
-        adminAuthorizableManager = adminSession.getAuthorizableManager();
-        adminContentManager = adminSession.getContentManager();
-        adminAccessControlManager = adminSession.getAccessControlManager();
+        Session adminSession2 = repository.loginAdministrative();
+        AuthorizableManager adminAuthorizableManager2 = adminSession2.getAuthorizableManager();
+        AccessControlManager adminAccessControlManager2 = adminSession2.getAccessControlManager();
 
         // make sure suzy can read
-        Authorizable suzy = adminAuthorizableManager.findAuthorizable("suzy");
-        Assert.assertTrue(adminAccessControlManager.can(suzy, Security.ZONE_AUTHORIZABLES, "inner",
+        Authorizable suzy = adminAuthorizableManager2.findAuthorizable("suzy");
+        Assert.assertTrue(adminAccessControlManager2.can(suzy, Security.ZONE_AUTHORIZABLES, "inner",
                 Permissions.CAN_READ));
-        Assert.assertTrue(adminAccessControlManager.can(suzy, Security.ZONE_AUTHORIZABLES,
+        Assert.assertTrue(adminAccessControlManager2.can(suzy, Security.ZONE_AUTHORIZABLES,
                 "wrapper", Permissions.CAN_READ));
-        Assert.assertFalse(adminAccessControlManager.can(suzy, Security.ZONE_AUTHORIZABLES,
+        Assert.assertFalse(adminAccessControlManager2.can(suzy, Security.ZONE_AUTHORIZABLES,
                 "wrapper", Permissions.CAN_WRITE));
-        Assert.assertFalse(adminAccessControlManager.can(suzy, Security.ZONE_CONTENT, "a:wrapper",
+        Assert.assertFalse(adminAccessControlManager2.can(suzy, Security.ZONE_CONTENT, "a:wrapper",
                 Permissions.CAN_WRITE));
-        Assert.assertTrue(adminAccessControlManager.can(suzy, Security.ZONE_CONTENT, "a:wrapper",
+        Assert.assertTrue(adminAccessControlManager2.can(suzy, Security.ZONE_CONTENT, "a:wrapper",
                 Permissions.CAN_READ));
 
         // Make sure zach cannot
-        Authorizable zach = adminAuthorizableManager.findAuthorizable("zach");
-        Assert.assertFalse(adminAccessControlManager.can(zach, Security.ZONE_AUTHORIZABLES,
+        Authorizable zach = adminAuthorizableManager2.findAuthorizable("zach");
+        Assert.assertFalse(adminAccessControlManager2.can(zach, Security.ZONE_AUTHORIZABLES,
                 "wrapper", Permissions.CAN_READ));
-        Assert.assertFalse(adminAccessControlManager.can(zach, Security.ZONE_CONTENT, "a:wrapper",
+        Assert.assertFalse(adminAccessControlManager2.can(zach, Security.ZONE_CONTENT, "a:wrapper",
                 Permissions.CAN_READ));
 
         final Session normalSession = repository.loginAdministrative("suzy");

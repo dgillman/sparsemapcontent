@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Sakai Foundation (SF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -81,7 +81,7 @@ public class User extends Authorizable {
         if (impersonators == null) {
             return false;
         }
-        Set<String> impersonatorSet = ImmutableSet.of(StringUtils.split(impersonators, ';'));
+        Set<String> impersonatorSet = ImmutableSet.copyOf(StringUtils.split(impersonators, ';'));
         for (Principal p : impersSubject.getPrincipals()) {
 
             if (ADMIN_USER.equals(p.getName()) || SYSTEM_USER.equals(p.getName())

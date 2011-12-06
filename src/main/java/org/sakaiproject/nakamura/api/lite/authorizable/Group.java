@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Sakai Foundation (SF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -163,6 +163,16 @@ public class Group extends Authorizable {
             membersRemoved.clear();
             membersModified = false;
         }
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        return super.equals(obj); // Group and User shared the same key space.
+    }
+    
+    @Override
+    public int hashCode() {
+        return super.hashCode();
     }
 
 }

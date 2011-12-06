@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Sakai Foundation (SF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -81,7 +81,7 @@ public class Authorizable {
     /**
      * The type value indicating a user.
      */
-    public static final Object USER_VALUE = "u";
+    public static final String USER_VALUE = "u";
 
     /**
      * The name of the administrators group, members of which are granted access
@@ -174,7 +174,7 @@ public class Authorizable {
         if (id == null || id.charAt(0) == '_') {
             LOGGER.warn("Authorizables cant be null or start with _ this {} will cause problems ", id);
         }
-        if ( session != null ) {
+        if ( session != null && !User.ADMIN_USER.equals(session.getUserId()) ) {
             AccessControlManager accessControlManager = session.getAccessControlManager();
             propertyAcl = accessControlManager.getPropertyAcl(Security.ZONE_AUTHORIZABLES, id );
         } else {

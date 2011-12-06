@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Sakai Foundation (SF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -48,6 +48,16 @@ public interface AuthorizableManager {
      */
     void updateAuthorizable(Authorizable authorizable) throws AccessDeniedException,
             StorageClientException;
+
+    /**
+     * Update an authorizable with the option to not touch the user last modified information.
+     * @param authorizable the authorizable.
+     * @param withTouch if false the last modified information will not be changed, but only admin users can perform this.
+     * @throws AccessDeniedException
+     * @throws StorageClientException
+     */
+    void updateAuthorizable(Authorizable authorizable, boolean withTouch)
+        throws AccessDeniedException, StorageClientException;
 
     /**
      * Create a group

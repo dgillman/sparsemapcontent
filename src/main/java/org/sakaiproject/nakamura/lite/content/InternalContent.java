@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Sakai Foundation (SF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -17,11 +17,11 @@
  */
 package org.sakaiproject.nakamura.lite.content;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
 import org.sakaiproject.nakamura.api.lite.RemoveProperty;
@@ -29,14 +29,13 @@ import org.sakaiproject.nakamura.api.lite.Repository;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
 import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
 import org.sakaiproject.nakamura.api.lite.content.Content;
-import org.sakaiproject.nakamura.lite.ConfigurationImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  * Internal Content Object for holding sparse Content objects. Has a protected
@@ -50,7 +49,7 @@ public class InternalContent {
     /**
      * The ID of a content item
      */
-    private static String UUID_FIELD = ConfigurationImpl.DEFAULT_UUID_FIELD;
+    public static String UUID_FIELD = Repository.SYSTEM_PROP_PREFIX+ "id";
 
     static boolean idFieldIsSet = false;
     /**
@@ -185,6 +184,16 @@ public class InternalContent {
     public static final String MIMETYPE_FIELD = Repository.SYSTEM_PROP_PREFIX + "mimeType";
 
     /**
+     * The sling resource type field.
+     */
+    public static final String SLING_RESOURCE_TYPE_FIELD = "sling:resourceType";
+    
+    /**
+     * Alternative resource type field.
+     */
+    public static final String RESOURCE_TYPE_FIELD = "resourceType";
+
+    /**
      * Charset encoding if char based.
      */
     public static final String ENCODING_FIELD = Repository.SYSTEM_PROP_PREFIX + "encoding";
@@ -256,11 +265,11 @@ public class InternalContent {
 
     /**
      * Convert a new content object to an internal version.
-     * 
-     * @param structure
-     *            the structure object
+     *
      * @param contentManager
      *            the content manager now managing this content object.
+     *
+     * @param readOnly sets this contentManager to be either read-only or not.
      */
     void internalize(ContentManagerImpl contentManager, boolean readOnly) {
         this.contentManager = contentManager;
@@ -360,7 +369,6 @@ public class InternalContent {
      *         hasProperty(String key) should be checked for an authoratative
      *         answer.
      */
-    // TODO: Unit test
     public Object getProperty(String key) {
         if (updatedContent.containsKey(key)) {
             Object o = updatedContent.get(key);
@@ -374,6 +382,10 @@ public class InternalContent {
             return null;
         }
         return o;
+    }
+
+    public String getId() {
+        return (String) content.get(UUID_FIELD);
     }
 
     /**
@@ -399,7 +411,7 @@ public class InternalContent {
      */
     public Iterable<Content> listChildren() {
         if (newcontent) {
-            return Iterables.emptyIterable();
+            return Collections.<Content>emptyList();
         }
         return new Iterable<Content>() {
 
@@ -419,7 +431,7 @@ public class InternalContent {
      */
     public Iterable<String> listChildPaths() {
         if (newcontent) {
-            return Iterables.emptyIterable();
+            return Collections.<String>emptyList();
         }
         return new Iterable<String>() {
 
@@ -459,30 +471,33 @@ public class InternalContent {
      * @deprecated This method sets the ID field for the whole system. Do not
      *             use. Its been provided to make it possible to configure the
      *             ID field name used by Sparse to allow Berkley to continue
-     *             running without migration. DO NOT USE, IT WILL HAVE NO EFFECT.
+     *             running without migration. DO NOT USE, IT WILL HAVE NO
+     *             EFFECT.
      * @param idFieldName
      */
     public static void setUuidField(String idFieldName) {
-        if ( !idFieldIsSet  ) {
+        if (!idFieldIsSet) {
             idFieldIsSet = true;
-            LOGGER.warn("ID Field is being set to {}, this can only be done once per JVM start ",idFieldName);
+            LOGGER.warn("ID Field is being set to {}, this can only be done once per JVM start ",
+                    idFieldName);
             UUID_FIELD = idFieldName;
         } else {
-            LOGGER.warn("ID Field has already been set to {} and cannot be reset. ",idFieldName);
+            LOGGER.warn("ID Field has already been set to {} and cannot be reset. ", idFieldName);
         }
     }
 
+
     /**
-     * @deprecated this is a transitional measure that will be removed once
-     *             Berkley have migrated. It allows them (and anyone else with
-     *             content containing _sparseId) in their data to configure
-     *             their system to use that field name. Eventually this method
-     *             will be replaced throughout the code base with a static
-     *             final.
-     * @return
+     * 
+     * @return true if the content item is deleted, the system does not delete
+     *         content items, it marks items as deleted. This will allow the
+     *         storage layers to maintain an update pattern that is close to
+     *         append only allowing compression of the storage to be
+     *         achieved by background task which may then also remove holes in the storage.
+     *         This is not dissimilar from the way most file systems work.
      */
-    public static String getUuidField() {
-        return UUID_FIELD;
+    public boolean isDeleted() {
+        return TRUE.equals(content.get(DELETED_FIELD));
     }
 
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Sakai Foundation (SF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -29,6 +29,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import org.sakaiproject.nakamura.lite.CachingManager;
 import org.sakaiproject.nakamura.lite.ConfigurationImpl;
 import org.sakaiproject.nakamura.lite.content.BlockContentHelper;
 import org.sakaiproject.nakamura.lite.content.BlockSetContentHelper;
@@ -37,6 +38,7 @@ import org.sakaiproject.nakamura.lite.storage.DisposableIterator;
 import org.sakaiproject.nakamura.lite.storage.Disposer;
 import org.sakaiproject.nakamura.lite.storage.SparseRow;
 import org.sakaiproject.nakamura.lite.storage.StorageClient;
+import org.sakaiproject.nakamura.lite.storage.StorageClientListener;
 import org.sakaiproject.nakamura.lite.types.Types;
 import org.sakaiproject.nakamura.api.lite.RemoveProperty;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
@@ -121,7 +123,7 @@ public class HBaseStorageClient implements StorageClient {
     } catch (UnsupportedEncodingException e1) {
       LOGGER.debug(e1.getMessage());
     } catch (IOException e) {
-      LOGGER.debug("IOException. Stack trace:" + e.getStackTrace());
+      LOGGER.debug("IOException. Stack trace:", e.getStackTrace());
     } finally {
       if (htab != null) {
         htab.putTable(table);
@@ -168,8 +170,7 @@ public class HBaseStorageClient implements StorageClient {
     HTableInterface indexTable = null;
     HTableInterface table = null;
     if (!columnFamily.equals(INDEX_COLUMN_FAMILY)) {
-      Map<String, Object> row = new HashMap<String, Object>();
-      row = get(keySpace, columnFamily, key);
+      Map<String, Object> row = get(keySpace, columnFamily, key);
 
       try {
         indexTable = htab.getTable(INDEX_COLUMN_FAMILY);
@@ -186,7 +187,7 @@ public class HBaseStorageClient implements StorageClient {
           indexTable.delete(delIndexKey);
         }
       } catch (IOException e) {
-        LOGGER.debug("IOException. Stack trace:" + e.getStackTrace());
+        LOGGER.debug("IOException. Stack trace:",e);
       }
     }
 
@@ -198,7 +199,7 @@ public class HBaseStorageClient implements StorageClient {
     } catch (UnsupportedEncodingException e1) {
       LOGGER.debug(e1.getMessage());
     } catch (IOException e) {
-      LOGGER.debug("IOException. Stack trace:" + e.getStackTrace());
+      LOGGER.debug("IOException. Stack trace:", e.getStackTrace());
     } finally {
       if (htab != null) {
         htab.putTable(table);
@@ -211,7 +212,7 @@ public class HBaseStorageClient implements StorageClient {
       throws StorageClientException {
 
     String properties[] = new ConfigurationImpl().getIndexColumnNames();
-    Set<String> indexColumns = ImmutableSet.of(properties);
+    Set<String> indexColumns = ImmutableSet.copyOf(properties);
 
     if (indexColumns.contains(columnFamily + ":" + columnName)) {
       LOGGER.debug("Should Index {}:{}", columnFamily, columnName);
@@ -228,7 +229,7 @@ public class HBaseStorageClient implements StorageClient {
     String indexKey = new String(bname) + ":" + columnFamily + ":"
         + StorageClientUtils.insecureHash(new String(b));
     Map<String, Object> values = new HashMap<String, Object>();
-    values.put(key, (Object) (new String("Value of index yet to be decided")));
+    values.put(key, (Object) "Value of index yet to be decided");
     insert(keySpace, INDEX_COLUMN_FAMILY, indexKey, values, true);
   }
 
@@ -258,13 +259,11 @@ public class HBaseStorageClient implements StorageClient {
   }
 
   public DisposableIterator<Map<String, Object>> find(String keySpace,
-      String authorizableColumnFamily, Map<String, Object> properties)
+      String authorizableColumnFamily, Map<String, Object> properties, CachingManager cachingManager)
       throws StorageClientException {
     final String fKeyspace = keySpace;
     final String fAuthorizableColumnFamily = authorizableColumnFamily;
     List<Set<String>> andTerms = new ArrayList<Set<String>>();
-    Map<String, Object> tempRow = new HashMap<String, Object>();
-    String indexKey = new String();
 
     for (Entry<String, Object> e : properties.entrySet()) {
       String k = e.getKey();
@@ -281,26 +280,26 @@ public class HBaseStorageClient implements StorageClient {
 
             for (Iterator<Entry<String, Object>> subtermsIter = subterms.iterator(); subtermsIter
                 .hasNext();) {
-              Set<String> or = new HashSet<String>();
               Entry<String, Object> subterm = subtermsIter.next();
               String subk = subterm.getKey();
               Object subv = subterm.getValue();
               if (shouldIndex(keySpace, authorizableColumnFamily, subk)) {
                 try {
-                  indexKey = new String(subk.getBytes("UTF-8"))
+                    Set<String> or = new HashSet<String>();
+                  String indexKey = new String(subk.getBytes("UTF-8"))
                       + ":"
                       + authorizableColumnFamily
                       + ":"
                       + StorageClientUtils.insecureHash(new String(Types
                           .toByteArray(subv)));
+                  Map<String, Object> tempRow = get(keySpace, INDEX_COLUMN_FAMILY, indexKey);
+                  for (Entry<String, Object> tempRows : tempRow.entrySet()) {
+                    or.add(tempRows.getKey());
+                  }
+                  orTerms.add(or);
                 } catch (IOException e1) {
                   LOGGER.warn("IOException {}", e1.getMessage());
                 }
-                tempRow = get(keySpace, INDEX_COLUMN_FAMILY, indexKey);
-                for (Entry<String, Object> tempRows : tempRow.entrySet()) {
-                  or.add(tempRows.getKey());
-                }
-                orTerms.add(or);
               }
             }
 
@@ -313,19 +312,19 @@ public class HBaseStorageClient implements StorageClient {
             }
             andTerms.add(orResultSet);
           } else {
-            Set<String> and = new HashSet<String>();
             try {
-              indexKey = new String(k.getBytes("UTF-8")) + ":" + authorizableColumnFamily
-                  + ":"
-                  + StorageClientUtils.insecureHash(new String(Types.toByteArray(v)));
+                  Set<String> and = new HashSet<String>();
+                  String indexKey = new String(k.getBytes("UTF-8")) + ":" + authorizableColumnFamily
+                      + ":"
+                      + StorageClientUtils.insecureHash(new String(Types.toByteArray(v)));
+                  Map<String, Object> tempRow = get(keySpace, INDEX_COLUMN_FAMILY, indexKey);
+                  for (Entry<String, Object> tempRows : tempRow.entrySet()) {
+                    and.add(tempRows.getKey());
+                  }
+                  andTerms.add(and);
             } catch (IOException e1) {
               LOGGER.warn("IOException {}", e1.getMessage());
             }
-            tempRow = get(keySpace, INDEX_COLUMN_FAMILY, indexKey);
-            for (Entry<String, Object> tempRows : tempRow.entrySet()) {
-              and.add(tempRows.getKey());
-            }
-            andTerms.add(and);
           }
         }
       }
@@ -417,7 +416,7 @@ public class HBaseStorageClient implements StorageClient {
   }
 
   public DisposableIterator<Map<String, Object>> listChildren(String keySpace,
-      String columnFamily, String key) throws StorageClientException {
+      String columnFamily, String key, CachingManager cachingManager) throws StorageClientException {
     throw new UnsupportedOperationException();
   }
 
@@ -464,6 +463,11 @@ public DisposableIterator<SparseRow> listAll(String keySpace, String columnFamil
 public long allCount(String keySpace, String columnFamily) {
     // TODO Auto-generated method stub
     return 0;
+}
+
+public void setStorageClientListener(StorageClientListener storageClientListener) {
+    // TODO Auto-generated method stub
+    
 }
 
 }

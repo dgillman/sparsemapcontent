@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Sakai Foundation (SF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +30,7 @@ import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 import org.sakaiproject.nakamura.api.lite.content.Content;
 import org.sakaiproject.nakamura.api.lite.util.PreemptiveIterator;
+import org.sakaiproject.nakamura.lite.CachingManager;
 import org.sakaiproject.nakamura.lite.content.BlockContentHelper;
 import org.sakaiproject.nakamura.lite.content.BlockSetContentHelper;
 import org.sakaiproject.nakamura.lite.content.InternalContent;
@@ -37,6 +38,7 @@ import org.sakaiproject.nakamura.lite.storage.DisposableIterator;
 import org.sakaiproject.nakamura.lite.storage.SparseMapRow;
 import org.sakaiproject.nakamura.lite.storage.SparseRow;
 import org.sakaiproject.nakamura.lite.storage.StorageClient;
+import org.sakaiproject.nakamura.lite.storage.StorageClientListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MemoryStorageClient implements StorageClient {
 
@@ -97,7 +100,7 @@ public class MemoryStorageClient implements StorageClient {
         String keyName = rowHash(keySpace, columnFamily, key);
 
         if (!store.containsKey(keyName)) {
-            Map<String, Object> row = Maps.newConcurrentHashMap();
+            Map<String, Object> row = Maps.newConcurrentMap();
             store.put(keyName, row);
             LOGGER.debug("Created {}  as {} ", new Object[] { keyName, row });
             return row;
@@ -158,8 +161,8 @@ public class MemoryStorageClient implements StorageClient {
         @SuppressWarnings("unchecked")
         Set<String> index = (Set<String>) store.get(indexKey);
         if ( index == null ) {
-            index = Sets.newConcurrentHashSet();
-            store.put(indexKey, index);
+          index = Sets.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+          store.put(indexKey, index);
         }
         index.add(rowHash(keySpace,columnFamily, key));
     }
@@ -211,7 +214,7 @@ public class MemoryStorageClient implements StorageClient {
     }
 
     public DisposableIterator<Map<String, Object>> find(String keySpace,
-            String columnFamily, Map<String, Object> properties) {
+            String columnFamily, Map<String, Object> properties, CachingManager cachingManager) {
         List<Set<String>> matchingSets = Lists.newArrayList();
         for (Entry<String, Object> e : properties.entrySet()) {
             Object v = e.getValue();
@@ -262,7 +265,7 @@ public class MemoryStorageClient implements StorageClient {
                    }
                 }
                 nextMap = null;
-                close();
+                super.close();
                 return false;
             }
 
@@ -281,10 +284,10 @@ public class MemoryStorageClient implements StorageClient {
     }
 
     public DisposableIterator<Map<String, Object>> listChildren(String keySpace,
-            String columnFamily, String key) throws StorageClientException {
+            String columnFamily, String key, CachingManager cachingManager) throws StorageClientException {
         String hash = rowHash(keySpace, columnFamily, key);
         LOGGER.debug("Finding {}:{}:{} as {} ",new Object[]{keySpace,columnFamily, key, hash});
-        return find(keySpace, columnFamily, ImmutableMap.of(InternalContent.PARENT_HASH_FIELD, (Object)hash));
+        return find(keySpace, columnFamily, ImmutableMap.of(InternalContent.PARENT_HASH_FIELD, (Object)hash), cachingManager);
     }
 
     public DisposableIterator<SparseRow> listAll(String keySpace, String columnFamily) {
@@ -308,7 +311,7 @@ public class MemoryStorageClient implements StorageClient {
                    }
                 }
                 nextRow = null;
-                close();
+                super.close();
                 return false;
             }
 
@@ -327,6 +330,11 @@ public class MemoryStorageClient implements StorageClient {
           count++;
         }
         return count;
+    }
+
+    public void setStorageClientListener(StorageClientListener storageClientListener) {
+        // TODO Auto-generated method stub
+        
     }
 
 

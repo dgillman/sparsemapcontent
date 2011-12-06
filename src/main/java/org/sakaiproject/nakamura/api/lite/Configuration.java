@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Sakai Foundation (SF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -15,6 +15,7 @@
  * KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.sakaiproject.nakamura.api.lite;
 
 import java.util.Map;
@@ -52,6 +53,11 @@ public interface Configuration {
     String getContentColumnFamily();
 
     /**
+     * @return name of the lock column family.
+     */
+    String getLockColumnFamily();
+    
+   /**
      * @return the config, shared by all drivers.
      */
     Map<String, String> getSharedConfig();
