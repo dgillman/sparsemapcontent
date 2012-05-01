@@ -76,6 +76,15 @@ public class JDBCStorageClientPool extends AbstractClientConnectionPool {
     @Property(value = { "" })
     private static final String PASSWORD = "password";
  
+    /**
+     * Clients should provide an implementation of NamedCacheManager in preference to this cache manager. 
+     */
+    @Reference
+    public StorageCacheManager storageManagerCache;
+
+    @Property(intValue = 500)
+    protected static final String FETCH_SIZE = "fetch.size";
+
     @Reference(cardinality=ReferenceCardinality.OPTIONAL_UNARY, policy=ReferencePolicy.DYNAMIC)
     private StorageCacheManager storageManagerCache;
 
