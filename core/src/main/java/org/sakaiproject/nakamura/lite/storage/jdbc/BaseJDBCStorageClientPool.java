@@ -80,6 +80,11 @@ public class BaseJDBCStorageClientPool extends AbstractClientConnectionPool {
     @Reference
     public StorageCacheManager storageManagerCache;
 
+    @Property(intValue = 500)
+    protected static final String FETCH_SIZE = "fetch.size";
+
+    @Reference(cardinality=ReferenceCardinality.OPTIONAL_UNARY, policy=ReferencePolicy.DYNAMIC)
+    private StorageCacheManager storageManagerCache;
 
 
     private static final String BASESQLPATH = "org/sakaiproject/nakamura/lite/storage/jdbc/config/client";
