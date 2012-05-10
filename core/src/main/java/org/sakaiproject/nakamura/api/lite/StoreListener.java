@@ -36,19 +36,16 @@ public interface StoreListener {
             TOPIC_BASE + "groups/" + DELETE_TOPIC, 
             TOPIC_BASE + "users/" + DELETE_TOPIC, 
             TOPIC_BASE + "admin/" + DELETE_TOPIC,
-            TOPIC_BASE + "authorizables/" + DELETE_TOPIC, 
             TOPIC_BASE + "content/" + DELETE_TOPIC,
             TOPIC_BASE + "authorizables/"+ADDED_TOPIC,
             TOPIC_BASE + "groups/"+ADDED_TOPIC,
             TOPIC_BASE + "users/"+ADDED_TOPIC,
             TOPIC_BASE + "admin/"+ADDED_TOPIC,
-            TOPIC_BASE + "authorizables/"+ADDED_TOPIC, 
             TOPIC_BASE + "content/"+ADDED_TOPIC,
             TOPIC_BASE + "authorizables/"+UPDATED_TOPIC, 
             TOPIC_BASE + "groups/"+UPDATED_TOPIC,
             TOPIC_BASE + "users/"+UPDATED_TOPIC,
             TOPIC_BASE + "admin/"+UPDATED_TOPIC,
-            TOPIC_BASE + "authorizables/"+UPDATED_TOPIC, 
             TOPIC_BASE + "content/"+UPDATED_TOPIC };
     public static final String USERID_PROPERTY = "userid";
     public static final String PATH_PROPERTY = "path";
