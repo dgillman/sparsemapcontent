@@ -623,9 +623,9 @@ public class AuthorizableManagerImpl extends CachingManager implements Authoriza
     }
 
     public boolean isAdmin(final String userId) throws StorageClientException, AccessDeniedException {
-      final Authorizable authz = findAuthorizable(userId);
+      final Authorizable user = findAuthorizable(userId);
 
-      return ( authz != null && authz.isAdmin() );
+      return ( user != null && User.class.isAssignableFrom(user.getClass()) && ((User)user).isAdmin() );
     }
 
 }
