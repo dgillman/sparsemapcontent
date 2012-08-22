@@ -8,6 +8,7 @@ import org.sakaiproject.nakamura.api.lite.accesscontrol.AclModification;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.Permission;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.PrincipalTokenResolver;
 import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
+import org.sakaiproject.nakamura.api.lite.authorizable.User;
 import org.sakaiproject.nakamura.api.lite.content.Content;
 import org.sakaiproject.nakamura.lite.accesscontrol.PropertyAcl;
 
@@ -66,6 +67,10 @@ public class AccessControlManagerTokenWrapper implements AccessControlManager {
 
     public String getCurrentUserId() {
         return delegate.getCurrentUserId();
+    }
+
+    public User getCurrentUser() {
+        return delegate.getCurrentUser();
     }
 
     public boolean can(Authorizable authorizable, String objectType, String objectPath,

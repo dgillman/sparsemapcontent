@@ -365,13 +365,14 @@ public class ContentManagerImpl extends CachingManager implements ContentManager
 
 
     public void triggerRefreshAll() throws StorageClientException {
-        if (User.ADMIN_USER.equals(accessControlManager.getCurrentUserId()) ) {
+        final User user = accessControlManager.getCurrentUser();
+        if (user.isAdmin()) {
             DisposableIterator<SparseRow> all = client.listAll(keySpace, contentColumnFamily);
             try {
                 while(all.hasNext()) {
                     Map<String, Object> c = all.next().getProperties();
                     if ( exists(c) && c.containsKey(PATH_FIELD) && !c.containsKey(STRUCTURE_UUID_FIELD)) {
-                        eventListener.onUpdate(Security.ZONE_CONTENT, (String)c.get(PATH_FIELD), User.ADMIN_USER, getResourceType(c), false, null, "op:update");
+                        eventListener.onUpdate(Security.ZONE_CONTENT, (String)c.get(PATH_FIELD), user.getId(), getResourceType(c), false, null, "op:update");
                     }
                 }
             } finally {

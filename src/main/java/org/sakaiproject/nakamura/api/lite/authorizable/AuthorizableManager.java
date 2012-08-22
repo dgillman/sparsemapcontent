@@ -145,5 +145,21 @@ public interface AuthorizableManager {
      */
     void triggerRefreshAll() throws StorageClientException;
 
+    /**
+     * Determine whether the current user is an Admin user.
+     *
+     * @return
+     * @throws StorageClientException
+     */
+    boolean isAdmin() throws StorageClientException;
+
+    /**
+     * Determine whether the supplied user ID is an Admin user.
+     *
+     * @param userId
+     * @return
+     * @throws StorageClientException
+     */
+    boolean isAdmin(String userId) throws StorageClientException, AccessDeniedException;
 
 }

@@ -556,6 +556,10 @@ public class AccessControlManagerImpl extends CachingManager implements AccessCo
         return user.getId();
     }
 
+    public User getCurrentUser() {
+      return user;
+    }
+
     public void close() {
         closed = true;
     }

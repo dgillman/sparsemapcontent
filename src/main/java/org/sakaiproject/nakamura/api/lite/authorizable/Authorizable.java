@@ -474,4 +474,13 @@ public class Authorizable {
     public boolean isImmutable() {
         return immutable || IMMUTABLE_AUTH_IDS.contains(id);
     }
+
+    /**
+     * @return true if this user is an administrative user.
+     */
+    public boolean isAdmin() {
+        return (isGroup() && ADMINISTRATORS_GROUP.equals(id)) ||
+           principals.contains(ADMINISTRATORS_GROUP);
+    }
+
 }

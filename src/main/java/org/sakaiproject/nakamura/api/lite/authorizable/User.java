@@ -61,8 +61,7 @@ public class User extends Authorizable {
      * @return true if this user is an administrative user.
      */
     public boolean isAdmin() {
-        return SYSTEM_USER.equals(id) || ADMIN_USER.equals(id)
-                || principals.contains(ADMINISTRATORS_GROUP);
+        return super.isAdmin() || SYSTEM_USER.equals(id) || ADMIN_USER.equals(id);
     }
 
     /**

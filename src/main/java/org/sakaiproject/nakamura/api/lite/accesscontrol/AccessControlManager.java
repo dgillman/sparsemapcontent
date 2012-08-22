@@ -19,6 +19,7 @@ package org.sakaiproject.nakamura.api.lite.accesscontrol;
 
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
 import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
+import org.sakaiproject.nakamura.api.lite.authorizable.User;
 import org.sakaiproject.nakamura.api.lite.content.Content;
 import org.sakaiproject.nakamura.lite.accesscontrol.PropertyAcl;
 
@@ -108,6 +109,11 @@ public interface AccessControlManager {
      * @return the current user ID associated with this AccessControlManager
      */
     String getCurrentUserId();
+
+    /**
+     * @return the current user associated with this AccessControlManager
+     */
+    User getCurrentUser();
 
     /**
      * Does the authorizable have the permission

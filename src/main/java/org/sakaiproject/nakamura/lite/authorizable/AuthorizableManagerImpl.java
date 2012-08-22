@@ -601,7 +601,7 @@ public class AuthorizableManagerImpl extends CachingManager implements Authoriza
     }
     
     public void triggerRefreshAll() throws StorageClientException {
-        if (User.ADMIN_USER.equals(accessControlManager.getCurrentUserId()) ) {
+        if (thisUser.isAdmin()) {
             DisposableIterator<SparseRow> all = client.listAll(keySpace, authorizableColumnFamily);
             try {
                 while(all.hasNext()) {
@@ -614,6 +614,18 @@ public class AuthorizableManagerImpl extends CachingManager implements Authoriza
                 all.close(); // not necessary if the wile completes, but if there is an error it might be.
             }
         }
+    }
+
+    public boolean isAdmin() throws StorageClientException {
+      final User user = getUser();
+
+      return (user != null && user.isAdmin());
+    }
+
+    public boolean isAdmin(final String userId) throws StorageClientException, AccessDeniedException {
+      final Authorizable authz = findAuthorizable(userId);
+
+      return ( authz != null && authz.isAdmin() );
     }
 
 }
